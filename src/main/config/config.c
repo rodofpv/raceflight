@@ -174,7 +174,6 @@ static void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->I8[PIDVEL] = 45;
     pidProfile->D8[PIDVEL] = 1;
 
-    pidProfile->yaw_p_limit = YAW_P_LIMIT_MAX;
     pidProfile->dterm_cut_hz = 0;
     pidProfile->pterm_cut_hz = 0;
     pidProfile->gyro_cut_hz = 0;
@@ -191,8 +190,6 @@ static void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->A_level = 5.0f;
     pidProfile->H_level = 3.0f;
     pidProfile->H_sensitivity = 75;
-
-    pidProfile->pid5_oldyw = 0;
 
 #ifdef GTUNE
     pidProfile->gtune_lolimP[ROLL] = 10;          // [0..200] Lower limit of ROLL P during G tune.
