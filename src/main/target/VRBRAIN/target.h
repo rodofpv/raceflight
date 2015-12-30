@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#define TARGET_BOARD_IDENTIFIER "VRCORE"
+#define TARGET_BOARD_IDENTIFIER "VRBR"
 
 #define LED0_GPIO   GPIOD
 #define LED0_PIN    Pin_14 // Blue LEDs - PB5
@@ -29,25 +29,20 @@
 #define BEEP_PIN    Pin_0
 #define BEEP_PERIPHERAL RCC_AHB1Periph_GPIOA
 
-#define INVERTER_PIN Pin_0 // PC0 used as inverter select GPIO
-#define INVERTER_GPIO GPIOC
-#define INVERTER_PERIPHERAL RCC_AHB1Periph_GPIOC
-#define INVERTER_USART USART1
 
-#define MPU6500_CS_GPIO_CLK_PERIPHERAL   RCC_AHB1Periph_GPIOE
-#define MPU6500_CS_GPIO       GPIOE
-#define MPU6500_CS_PIN        GPIO_Pin_10
-#define MPU6500_SPI_INSTANCE  SPI2
+#define MPU6000_CS_GPIO_CLK_PERIPHERAL   RCC_AHB1Periph_GPIOE
+#define MPU6000_CS_GPIO       GPIOE
+#define MPU6000_CS_PIN        GPIO_Pin_10
+#define MPU6000_SPI_INSTANCE  SPI2
 
 #define ACC
-#define USE_ACC_MPU6500
-#define USE_ACC_SPI_MPU6500
-#define ACC_MPU6500_ALIGN CW270_DEG
+#define USE_ACC_SPI_MPU6000
+#define ACC_SPI_MPU6000_ALIGN CW270_DEG
 
 #define GYRO
-#define USE_GYRO_MPU6500
-#define USE_GYRO_SPI_MPU6500
-#define GYRO_MPU6500_ALIGN CW270_DEG
+#define USE_GYRO_SPI_MPU6000
+#define GYRO_SPI_MPU6000_ALIGN CW270_DEG
+
 
 // MPU6000 interrupts
 #define USE_MPU_DATA_READY_SIGNAL
@@ -67,7 +62,6 @@
 //#define USE_PITOT_MS4525
 //#define MS4525_BUS I2C_DEVICE_EXT
 
-#define INVERTER
 #define BEEPER
 #define LED0
 #define LED1
@@ -89,7 +83,6 @@
 #define FATFS_CS_PIN        GPIO_Pin_4
 
 #define USE_SPISDCARD
-
 
 #define USABLE_TIMER_CHANNEL_COUNT 12
 
@@ -127,7 +120,7 @@
 #define USE_SPI
 #define USE_SPI_DEVICE_1
 #define USE_SPI_DEVICE_2
-//#define USE_SPI_DEVICE_3
+#define USE_SPI_DEVICE_3
 
 /*
 #define USE_I2C

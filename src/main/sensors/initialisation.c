@@ -221,7 +221,7 @@ const extiConfig_t *selectMPUIntExtiConfig(void)
     return &alienflightf4MPUIntExtiConfig;
 #endif
 
-#if defined (VRCORE)
+#if defined(VRCORE) || defined(VRBRAIN)
     static const extiConfig_t vrcoref4MPUIntExtiConfig = {
             .gpioAHB1Peripherals = RCC_AHB1Periph_GPIOD,
             .gpioPort = GPIOD,

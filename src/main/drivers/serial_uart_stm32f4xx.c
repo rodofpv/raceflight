@@ -173,7 +173,7 @@ uartPort_t *serialUSART1(uint32_t baudRate, portMode_t mode, portOptions_t optio
     GPIO_PinAFConfig(USART1_GPIO, GPIO_PinSource10, GPIO_AF_USART1);
 #endif
 
-#if defined(REVONANO) || defined(VRCORE)
+#if defined(REVONANO) || defined(VRCORE) || defined(VRBRAIN)
     GPIO_PinAFConfig(USART1_GPIO, GPIO_PinSource6, GPIO_AF_USART1);
     GPIO_PinAFConfig(USART1_GPIO, GPIO_PinSource7, GPIO_AF_USART1);
 #endif

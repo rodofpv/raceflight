@@ -132,7 +132,7 @@ void initSpi1(void)
     gpio.mode = Mode_AF_PP;
     gpioInit(GPIOA, &gpio);
 
-#if defined(REVO) || defined(ALIENFLIGHTF4) || defined(VRCORE)
+#if defined(REVO) || defined(ALIENFLIGHTF4) || defined(VRCORE) || defined(VRBRAIN)
     // Used for MPU6000 gyro and accelerometer
     // NSS as gpio slave select
     gpio.pin = Pin_4;
@@ -262,7 +262,7 @@ void initSpi2(void)
 
 #if defined(STM32F40_41xxx)
 
-#if defined(VRCORE)
+#if defined(VRCORE) || defined(VRBRAIN)
     gpio_config_t gpio;
 
     // SCK as output

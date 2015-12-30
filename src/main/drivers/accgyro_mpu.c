@@ -54,7 +54,7 @@ static int gyro_i_count = 0;
 static volatile bool mpuDataReady;
 static bool filterFull = false;
 static int gyroADCnums = 0;
-#if defined(REVONANO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
+#if defined(REVONANO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE) || defined(VRBRAIN)
 //#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
 #define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
 #else
@@ -219,7 +219,7 @@ void MPU_DATA_READY_EXTI_Handler(void)
 #elif defined (ALIENFLIGHTF4)
     if (EXTI_GetITStatus(EXTI_Line14) != RESET) {
         EXTI_ClearITPendingBit(EXTI_Line14);
-#elif defined (VRCORE)
+#elif defined (VRCORE) || defined(VRBRAIN)
     if (EXTI_GetITStatus(EXTI_Line10) != RESET) {
         EXTI_ClearITPendingBit(EXTI_Line10);
 #else
@@ -442,7 +442,7 @@ void configureMPUDataReadyInterruptHandling(void)
 
 	EXTI_ClearITPendingBit(EXTI_Line15);
 
-#elif defined(USE_MPU_DATA_READY_SIGNAL) && defined(VRCORE)
+#elif defined(USE_MPU_DATA_READY_SIGNAL) && (defined(VRCORE) || defined(VRBRAIN))
 
 	GPIO_InitTypeDef GPIO_InitStruct;
 	EXTI_InitTypeDef EXTI_InitStruct;

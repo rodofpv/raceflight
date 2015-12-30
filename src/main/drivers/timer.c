@@ -362,7 +362,7 @@ const timerHardware_t timerHardware[USABLE_TIMER_CHANNEL_COUNT] = {
 
 #endif
 
-#ifdef VRCORE
+#if defined(VRCORE) || defined(VRBRAIN)
 const timerHardware_t timerHardware[USABLE_TIMER_CHANNEL_COUNT] = {
     { TIM1, GPIOE, Pin_9, TIM_Channel_1, TIM1_CC_IRQn, 0, GPIO_Mode_AF, GPIO_PinSource9, GPIO_AF_TIM1},       // S1_IN
     { TIM1, GPIOE, Pin_11,TIM_Channel_2, TIM1_CC_IRQn, 0, GPIO_Mode_AF, GPIO_PinSource11, GPIO_AF_TIM1},      // S2_IN

@@ -59,7 +59,16 @@
 #include "config/config_profile.h"
 #include "config/config_master.h"
 
+
+#include "tm_stm32f4_delay.h"
+#include "tm_stm32f4_fatfs.h"
+
+FATFS FatFs;                    /* Fatfs object         */
+FIL fil;                        /* File object          */
+
 #include "io/flashfs.h"
+
+
 
 #ifdef BLACKBOX
 
@@ -77,6 +86,11 @@ static portSharing_e blackboxPortSharing;
 void blackboxWrite(uint8_t value)
 {
     switch (masterConfig.blackbox_device) {
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+        	f_putc(value, &fil);     // TODO: Write byte asynchronously
+        break;
+#endif
 #ifdef USE_FLASHFS
         case BLACKBOX_DEVICE_FLASH:
             flashfsWriteByte(value); // Write byte asynchronously
@@ -144,6 +158,16 @@ int blackboxPrint(const char *s)
     const uint8_t *pos;
 
     switch (masterConfig.blackbox_device) {
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+            pos = (uint8_t*) s;
+            while (*pos) {
+            	f_putc(*pos, &fil);
+                pos++;
+            }
+            length = pos - (uint8_t*) s;
+        break;
+#endif
 
 #ifdef USE_FLASHFS
         case BLACKBOX_DEVICE_FLASH:
@@ -488,6 +512,11 @@ bool blackboxDeviceFlush(void)
             return flashfsFlushAsync();
 #endif
 
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+        	return true;
+#endif
+
         default:
             return false;
     }
@@ -498,6 +527,9 @@ bool blackboxDeviceFlush(void)
  */
 bool blackboxDeviceOpen(void)
 {
+	uint32_t FileIndex;
+	char FileName[15];
+
     switch (masterConfig.blackbox_device) {
         case BLACKBOX_DEVICE_SERIAL:
             {
@@ -551,6 +583,42 @@ bool blackboxDeviceOpen(void)
             return true;
         break;
 #endif
+
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+
+			blackboxMaxHeaderBytesPerIteration = BLACKBOX_TARGET_HEADER_BUDGET_PER_ITERATION;
+
+			if (f_mount(&FatFs, "0:", 1) == FR_OK) {
+				FileIndex=1;
+				while (FileIndex < 99999){
+					if (FileIndex<10)
+						tfp_sprintf(FileName, "0:LOG0000%d.TXT", FileIndex);
+					else if (FileIndex<100)
+						tfp_sprintf(FileName, "0:LOG000%d.TXT", FileIndex);
+					else if (FileIndex<1000)
+						tfp_sprintf(FileName, "0:LOG00%d.TXT", FileIndex);
+					else if (FileIndex<10000)
+						tfp_sprintf(FileName, "0:LOG0%d.TXT", FileIndex);
+					else
+						tfp_sprintf(FileName, "0:LOG%d.TXT", FileIndex);
+
+					if (f_open(&fil, FileName, FA_READ) != FR_OK){
+						if (f_open(&fil, FileName, FA_CREATE_ALWAYS | FA_READ | FA_WRITE) == FR_OK)
+							return true;
+						else
+							return false;
+					}
+					FileIndex++;
+				}
+				return false;
+			}
+			else
+				return false;
+
+			break;
+#endif
+
         default:
             return false;
     }
@@ -579,6 +647,14 @@ void blackboxDeviceClose(void)
             // No-op since the flash doesn't have a "close" and there's nobody else to hand control of it to.
             break;
 #endif
+
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+        	f_close(&fil);	     // Close logfile
+        	f_mount(0, "0:", 1); // Unmount drive, don't forget this!
+        	break;
+#endif
+
     }
 }
 
@@ -591,6 +667,11 @@ bool isBlackboxDeviceFull(void)
 #ifdef USE_FLASHFS
         case BLACKBOX_DEVICE_FLASH:
             return flashfsIsEOF();
+#endif
+
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+            return false; //TODO
 #endif
 
         default:
@@ -606,7 +687,7 @@ void blackboxReplenishHeaderBudget()
 {
     int32_t freeSpace;
 
-    switch (masterConfig.blackbox_device) {
+	switch (masterConfig.blackbox_device) {
         case BLACKBOX_DEVICE_SERIAL:
             freeSpace = serialTxBytesFree(blackboxPort);
         break;
@@ -615,8 +696,16 @@ void blackboxReplenishHeaderBudget()
             freeSpace = flashfsGetWriteBufferFreeSpace();
         break;
 #endif
+
+#ifdef USE_SPISDCARD
+        case BLACKBOX_DEVICE_SPISDCARD:
+        	freeSpace = 10000000;  //TODO
+			break;
+#endif
+
         default:
-            freeSpace = 0;
+			freeSpace = 0;
+
     }
 
     blackboxHeaderBudget = MIN(MIN(freeSpace, blackboxHeaderBudget + blackboxMaxHeaderBytesPerIteration), BLACKBOX_MAX_ACCUMULATED_HEADER_BUDGET);

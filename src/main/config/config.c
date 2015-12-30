@@ -139,7 +139,7 @@ void useRcControlsConfig(modeActivationCondition_t *modeActivationConditions, es
 #endif
 
 
-#if defined(REVO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
+#if defined(REVO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE) || defined(VRBRAIN)
 //dedicated flash storage since we have so much storage space
 //#define CONFIG_START_FLASH_ADDRESS (0x080E0000) //0x080E0000 to 0x080FFFFF (FLASH_Sector_11
 #define CONFIG_START_FLASH_ADDRESS (0x08080000) //0x08080000 to 0x080A0000 (FLASH_Sector_8)
@@ -453,7 +453,7 @@ static void resetConf(void)
 
     resetTelemetryConfig(&masterConfig.telemetryConfig);
 
-#if defined(REVO) || defined(SPARKY2) || defined(REVONANO) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
+#if defined(REVO) || defined(SPARKY2) || defined(REVONANO) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE) || defined(VRBRAIN)
     masterConfig.rxConfig.serialrx_provider = 2;
 #else
     masterConfig.rxConfig.serialrx_provider = 0;
@@ -579,9 +579,12 @@ static void resetConf(void)
 #if defined(SPRACINGF3)
     featureSet(FEATURE_BLACKBOX);
     masterConfig.blackbox_device = 1;
-#elif defined(REVO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
+#elif defined(REVO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4)
     featureSet(FEATURE_BLACKBOX);
     masterConfig.blackbox_device = 1;
+#elif defined(VRCORE) || defined(VRBRAIN)
+    featureSet(FEATURE_BLACKBOX);
+    masterConfig.blackbox_device = 2;
 #else
     masterConfig.blackbox_device = 0;
 #endif
@@ -589,8 +592,11 @@ static void resetConf(void)
     masterConfig.blackbox_rate_denom = 1;
 #endif
 
-#if defined(REVO) || defined(SPARKY2) || defined (REVONANO) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
+#if defined(REVO) || defined(SPARKY2) || defined (REVONANO) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4)
     featureSet(FEATURE_RX_SERIAL);
+    featureSet(FEATURE_ONESHOT125);
+#endif
+#if defined(VRCORE) || defined(VRBRAIN)
     featureSet(FEATURE_ONESHOT125);
 #endif
 #if defined(REVONANO)
@@ -603,10 +609,9 @@ static void resetConf(void)
     masterConfig.serialConfig.portConfigs[2].functionMask = FUNCTION_MSP; //default config Fleix port for MSP at 9600 for use with 1wire.
     masterConfig.serialConfig.portConfigs[2].msp_baudrateIndex = BAUD_9600;
 #endif
-#if defined(VRCORE)
-    masterConfig.serialConfig.portConfigs[1].functionMask = FUNCTION_RX_SERIAL;
-    masterConfig.serialConfig.portConfigs[2].functionMask = FUNCTION_MSP; //default config Fleix port for MSP at 9600 for use with 1wire.
-    masterConfig.serialConfig.portConfigs[2].msp_baudrateIndex = BAUD_9600;
+#if defined(VRCORE) || defined(VRBRAIN)
+    masterConfig.serialConfig.portConfigs[1].functionMask = FUNCTION_MSP; //default config Fleix port for MSP at 9600 for use with 1wire.
+    masterConfig.serialConfig.portConfigs[1].msp_baudrateIndex = BAUD_9600;
 #endif
 
     // alternative defaults settings for ALIENWIIF1 and ALIENWIIF3 targets

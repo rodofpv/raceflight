@@ -661,7 +661,7 @@ static const uint16_t airPWM[] = {
 };
 #endif
 
-#if defined(VRCORE)
+#if defined(VRCORE) || defined(VRBRAIN)
 static const uint16_t multiPPM[] = {
     PWM1  | (MAP_TO_PPM_INPUT << 8),     // PPM input
     PWM7  | (MAP_TO_MOTOR_OUTPUT << 8),      // Swap to servo if needed
@@ -1056,7 +1056,7 @@ pwmOutputConfiguration_t *pwmInit(drv_pwm_config_t *init)
                 ppmAvoidPWMTimerClash(timerHardwarePtr, TIM8);
             }
 #endif
-#ifdef VRCORE
+#if defined(VRCORE) || defined(VRBRAIN)
             if (init->useMultiShot || init->useOneshot || isMotorBrushed(init->motorPwmRate)) {
                 ppmAvoidPWMTimerClash(timerHardwarePtr, TIM1);
             }

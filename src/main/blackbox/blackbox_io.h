@@ -29,6 +29,10 @@ typedef enum BlackboxDevice {
     BLACKBOX_DEVICE_FLASH,
 #endif
 
+#ifdef USE_SPISDCARD
+    BLACKBOX_DEVICE_SPISDCARD,
+#endif
+
     BLACKBOX_DEVICE_END
 } BlackboxDevice;
 
