@@ -108,7 +108,7 @@ void mpu6500GyroInit(uint8_t lpf)
 #if defined (REVONANO) || defined (SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
     //mpuConfiguration.write(MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3 | FCB_8800_32); //Fchoice_b defaults to 00 which makes fchoice 11
     //delayMicroseconds(1);
-    mpuConfiguration.write(MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3); //Fchoice_b defaults to 00 which makes fchoice 11
+    mpuConfiguration.write(MPU_RA_GYRO_CONFIG, INV_FSR_2000DPS << 3 | FCB_3600_32); //Fchoice_b defaults to 00 which makes fchoice 11
     delayMicroseconds(1);
     mpuConfiguration.write(MPU_RA_CONFIG, 7); //7 = 8KHz, 3600
     delayMicroseconds(1);

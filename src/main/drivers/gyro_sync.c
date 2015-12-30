@@ -47,15 +47,16 @@ void gyroUpdateSampleRate(void) {
     int gyroFrequency;
     int gyroSampleRate;
 #if defined(REVONANO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
-    //gyroFrequency  = 31; // gyro sampling rate 32khz
-    //gyroSampleRate = 31; // 32khz sampling
-    gyroFrequency  = 125;  // gyro sampling rate 8khz
-    gyroSampleRate = 125;  // 8khz sampling
-    targetLooptime = 250;  // Wanted looptime
+    gyroFrequency  = 31; // gyro sampling rate 32khz
+    gyroSampleRate = 31; // 32khz sampling
+    targetLooptime = 62;  // Wanted looptime
+    //gyroFrequency  = 125;  // gyro sampling rate 8khz
+    //gyroSampleRate = 125;  // 8khz sampling
+    //targetLooptime = 250;  // Wanted looptime
 #else
     gyroFrequency  = 125;  // gyro sampling rate 8khz
     gyroSampleRate = 125;  // 8khz sampling
-    targetLooptime = 250;  // Wanted looptime
+    targetLooptime = 500;  // Wanted looptime
 #endif
 
 //    gyroFrequency  = 1000;   // gyro sampling rate 1khz
