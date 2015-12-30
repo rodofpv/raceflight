@@ -34,6 +34,8 @@
 #include "bus_i2c.h"
 #include "gyro_sync.h"
 
+#include "io/rc_controls.h"
+
 #include "sensor.h"
 #include "accgyro.h"
 #include "accgyro_mpu3050.h"
@@ -58,7 +60,7 @@ static int gyroADCnums = 0;
 //#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
 #define gyroFilterLevel 32 //todo move to gyro_sync and calculate.
 #else
-#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
+#define gyroFilterLevel 4 //todo move to gyro_sync and calculate.
 #endif
 static int16_t gyroADCtable0[gyroFilterLevel];
 static int16_t gyroADCtable1[gyroFilterLevel];
@@ -238,9 +240,11 @@ void MPU_DATA_READY_EXTI_Handler(void)
 
 		gyro_i_count++;
 		mpuGyroReadCollect();
-
-		if (gyro_i_count >= gyroFilterLevel / 4) {
-
+#if defined(REVONANO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
+		if (gyro_i_count >= 2) {//Every X interupts we do a loop.
+#else
+		if (gyro_i_count >= 2) {//Every X interupts we do a loop.
+#endif
 
 #ifdef DEBUG_MPU_DATA_READY_INTERRUPT
 			static uint32_t lastCalledAt1 = 0;
@@ -647,9 +651,16 @@ bool mpuGyroRead(int16_t *gyroADC)
 
 	} else {
 
-		gyroADC[0] = (int16_t)( ( gyroTotal0 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
-		gyroADC[1] = (int16_t)( ( gyroTotal1 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
-		gyroADC[2] = (int16_t)( ( gyroTotal2 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
+
+		if (IS_RC_MODE_ACTIVE(BOXTEST1)) {
+			gyroADC[0] = (int16_t)quickMedianFilter8(gyroADCtable0);
+			gyroADC[1] = (int16_t)quickMedianFilter8(gyroADCtable1);
+			gyroADC[2] = (int16_t)quickMedianFilter8(gyroADCtable2);
+		} else {
+			gyroADC[0] = (int16_t)( ( gyroTotal0 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
+			gyroADC[1] = (int16_t)( ( gyroTotal1 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
+			gyroADC[2] = (int16_t)( ( gyroTotal2 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
+		}
 
 	}
 

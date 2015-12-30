@@ -86,6 +86,7 @@ void buildRotationMatrix(fp_angles_t *delta, float matrix[3][3]);
 int32_t quickMedianFilter3(int32_t * v);
 int32_t quickMedianFilter5(int32_t * v);
 int32_t quickMedianFilter7(int32_t * v);
+int16_t quickMedianFilter8(int16_t * v);
 int32_t quickMedianFilter9(int32_t * v);
 
 float quickMedianFilter3f(float * v);

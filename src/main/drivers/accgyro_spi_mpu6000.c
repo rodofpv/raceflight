@@ -229,7 +229,7 @@ static void mpu6000AccAndGyroInit(void) {
 #endif
 
     // Accel and Gyro DLPF Setting
-    verifympu6000WriteRegister(MPU6000_CONFIG, 0);
+    verifympu6000WriteRegister(MPU6000_CONFIG, 0); //0=256, 7=bypass
 
     // Clock Source PPL with Z axis gyro reference
     verifympu6000WriteRegister(MPU_RA_PWR_MGMT_1, 0x09);

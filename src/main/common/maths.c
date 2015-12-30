@@ -268,6 +268,31 @@ int32_t quickMedianFilter7(int32_t * v)
     return p[3];
 }
 
+int16_t quickMedianFilter8(int16_t * v)
+{
+	//not the right way to do median filtering on an even group of numbers. just a quick and dirty test.
+	int16_t p[9];
+
+	p[0] = v[0];
+	p[1] = v[1];
+	p[2] = v[2];
+	p[3] = v[3];
+	p[4] = v[4];
+	p[5] = v[5];
+	p[6] = v[6];
+	p[7] = v[7];
+	p[8] = v[0];
+
+    QMF_SORT(p[1], p[2]); QMF_SORT(p[4], p[5]); QMF_SORT(p[7], p[8]);
+    QMF_SORT(p[0], p[1]); QMF_SORT(p[3], p[4]); QMF_SORT(p[6], p[7]);
+    QMF_SORT(p[1], p[2]); QMF_SORT(p[4], p[5]); QMF_SORT(p[7], p[8]);
+    QMF_SORT(p[0], p[3]); QMF_SORT(p[5], p[8]); QMF_SORT(p[4], p[7]);
+    QMF_SORT(p[3], p[6]); QMF_SORT(p[1], p[4]); QMF_SORT(p[2], p[5]);
+    QMF_SORT(p[4], p[7]); QMF_SORT(p[4], p[2]); QMF_SORT(p[6], p[4]);
+    QMF_SORT(p[4], p[2]);
+    return p[4];
+}
+
 int32_t quickMedianFilter9(int32_t * v)
 {
     int32_t p[9];

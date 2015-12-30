@@ -211,7 +211,7 @@ static void pidLuxFloat(pidProfile_t *pidProfile, controlRateConfig_t *controlRa
 				}
 
 				if (IS_RC_MODE_ACTIVE(BOXTEST1)) {
-					yaw_kp_multiplier = 2.0f-(1.0f*acro_plus_ki_scaler);
+					//yaw_kp_multiplier = 2.0f-(1.0f*acro_plus_ki_scaler);
 				} else if (IS_RC_MODE_ACTIVE(BOXTEST2)) {
 					yaw_kp_multiplier = 1.5f-(0.5f*acro_plus_ki_scaler);
 				} else {
