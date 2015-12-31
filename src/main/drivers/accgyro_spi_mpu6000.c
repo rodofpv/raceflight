@@ -143,6 +143,8 @@ bool mpu6000SlowReadRegister(uint8_t reg, uint8_t length, uint8_t *data)
 
 void mpu6000SpiGyroInit(uint8_t lpf)
 {
+	(void)(lpf); //we don't do anything with this. All gyros run at full rates on F4s.
+
 	debug[3]++;
     mpuIntExtiInit();
 

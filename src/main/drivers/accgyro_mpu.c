@@ -56,15 +56,20 @@ static int gyro_i_count = 0;
 static volatile bool mpuDataReady;
 static bool filterFull = false;
 static int gyroADCnums = 0;
+static int GyroLPF = 8;
+static int GyroDownSample = 8;
+static float GyroFilterLevel = 1;
+
 #if defined(REVONANO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE)
-//#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
-#define gyroFilterLevel 32 //todo move to gyro_sync and calculate.
+static int GyroKHz = 32;
 #else
-#define gyroFilterLevel 4 //todo move to gyro_sync and calculate.
+static int GyroKHz = 8;
 #endif
-static int16_t gyroADCtable0[gyroFilterLevel];
-static int16_t gyroADCtable1[gyroFilterLevel];
-static int16_t gyroADCtable2[gyroFilterLevel];
+
+//allow up to 32 gyro samples
+static int16_t gyroADCtable0[32];
+static int16_t gyroADCtable1[32];
+static int16_t gyroADCtable2[32];
 static int32_t gyroTotal0 = 0;
 static int32_t gyroTotal1 = 0;
 static int32_t gyroTotal2 = 0;
@@ -626,7 +631,10 @@ bool mpuGyroReadCollect(void)
     gyroTotal2 += gyroADCtable2[gyroADCnums];
 
     gyroADCnums++;
-    if (gyroADCnums >= gyroFilterLevel) {
+
+    GyroDownSample = (int)(GyroKHz / GyroLPF) * GyroFilterLevel; //ceil before casting to int? Nah, just do the calculations. Floats may alias data.
+
+    if (gyroADCnums >= GyroDownSample) { //how many times do we filter? (GyroLPF) 32 or 8khz ,we need to know, how much do we downsample? how much do we filter? Find downsample then multiple by filter.
     	gyroADCnums = 0;
     	filterFull = true;
     }
@@ -657,9 +665,9 @@ bool mpuGyroRead(int16_t *gyroADC)
 			gyroADC[1] = (int16_t)quickMedianFilter8(gyroADCtable1);
 			gyroADC[2] = (int16_t)quickMedianFilter8(gyroADCtable2);
 		} else {
-			gyroADC[0] = (int16_t)( ( gyroTotal0 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
-			gyroADC[1] = (int16_t)( ( gyroTotal1 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
-			gyroADC[2] = (int16_t)( ( gyroTotal2 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
+			gyroADC[0] = (int16_t)( ( gyroTotal0 ) / GyroDownSample);
+			gyroADC[1] = (int16_t)( ( gyroTotal1 ) / GyroDownSample);
+			gyroADC[2] = (int16_t)( ( gyroTotal2 ) / GyroDownSample);
 		}
 
 	}
@@ -674,4 +682,8 @@ void checkMPUDataReady(bool *mpuDataReadyPtr) {
     } else {
         *mpuDataReadyPtr = false;
     }
+}
+
+void setGyroLpf(uint8_t lpf) {
+	GyroLPF = lpf;
 }

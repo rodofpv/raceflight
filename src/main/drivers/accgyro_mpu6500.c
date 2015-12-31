@@ -82,6 +82,8 @@ void mpu6500GyroInit(uint8_t lpf)
 {
     mpuIntExtiInit();
 
+    (void)(lpf);
+
 #ifdef NAZE
     // FIXME target specific code in driver code.
 
