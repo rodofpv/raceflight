@@ -412,7 +412,7 @@ void init(void)
     }
 #endif
 
-    if (!sensorsAutodetect(&masterConfig.sensorAlignmentConfig, masterConfig.acc_hardware, masterConfig.mag_hardware, masterConfig.baro_hardware, currentProfile->mag_declination, masterConfig.gyro_lpf)) {
+    if (!sensorsAutodetect(&masterConfig.sensorAlignmentConfig, masterConfig.acc_hardware, masterConfig.mag_hardware, masterConfig.baro_hardware, currentProfile->mag_declination, masterConfig.gyro_lpf, currentProfile->pidProfile.gyro_soft_lpf)) {
         // if gyro was not detected due to whatever reason, we give up now.
         failureMode(FAILURE_MISSING_ACC);
     }
@@ -587,6 +587,10 @@ void HardFault_Handler(void) {
 
     while(1) {
 #ifdef BLUEJAYF4
+        delay(25);
+        LED2_TOGGLE;
+#endif
+#ifdef SPARKY2
         delay(25);
         LED2_TOGGLE;
 #endif

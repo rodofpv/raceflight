@@ -4,7 +4,7 @@
 **  File        : stm32_flash.ld
 **
 **  Abstract    : Linker script for STM32F407VG Device with
-**                1024KByte FLASH, 128KByte RAM
+**                1024KByte FLASH, 196KByte RAM
 **
 **                Set heap size, stack size and stack location according
 **                to application requirements.

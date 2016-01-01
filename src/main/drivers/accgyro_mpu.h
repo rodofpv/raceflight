@@ -179,3 +179,4 @@ bool mpuGyroReadCollect(void);
 bool mpuGyroRead(int16_t *gyroADC);
 mpuDetectionResult_t *detectMpu(const extiConfig_t *configToUse);
 void checkMPUDataReady(bool *mpuDataReadyPtr);
+void setGyroLpf(uint8_t lpf, int8_t gyro_soft_lpf);

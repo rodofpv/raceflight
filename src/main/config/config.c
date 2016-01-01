@@ -201,7 +201,7 @@ static void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->I8[PIDVEL] = 45;
     pidProfile->D8[PIDVEL] = 1;
 
-    pidProfile->gyro_soft_lpf = 0;   // LOW filtering by default
+    pidProfile->gyro_soft_lpf = 10;   // Moving Average Filter multiplier (Int / 10 cast as float)
     pidProfile->dterm_cut_hz = 8;
     pidProfile->yaw_pterm_cut_hz = 30;
 

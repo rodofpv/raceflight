@@ -632,8 +632,6 @@ bool mpuGyroReadCollect(void)
 
     gyroADCnums++;
 
-    GyroDownSample = (int)(GyroKHz / GyroLPF) * GyroFilterLevel; //ceil before casting to int? Nah, just do the calculations. Floats may alias data.
-
     if (gyroADCnums >= GyroDownSample) { //how many times do we filter? (GyroLPF) 32 or 8khz ,we need to know, how much do we downsample? how much do we filter? Find downsample then multiple by filter.
     	gyroADCnums = 0;
     	filterFull = true;
@@ -659,11 +657,13 @@ bool mpuGyroRead(int16_t *gyroADC)
 
 	} else {
 
-
 		if (IS_RC_MODE_ACTIVE(BOXTEST1)) {
-			gyroADC[0] = (int16_t)quickMedianFilter8(gyroADCtable0);
-			gyroADC[1] = (int16_t)quickMedianFilter8(gyroADCtable1);
-			gyroADC[2] = (int16_t)quickMedianFilter8(gyroADCtable2);
+			//gyroADC[0] = (int16_t)quickMedianFilter8(gyroADCtable0);
+			//gyroADC[1] = (int16_t)quickMedianFilter8(gyroADCtable1);
+			//gyroADC[2] = (int16_t)quickMedianFilter8(gyroADCtable2);
+			gyroADC[0] = (int16_t)( ( gyroTotal0 ) / GyroDownSample);
+			gyroADC[1] = (int16_t)( ( gyroTotal1 ) / GyroDownSample);
+			gyroADC[2] = (int16_t)( ( gyroTotal2 ) / GyroDownSample);
 		} else {
 			gyroADC[0] = (int16_t)( ( gyroTotal0 ) / GyroDownSample);
 			gyroADC[1] = (int16_t)( ( gyroTotal1 ) / GyroDownSample);
@@ -684,6 +684,11 @@ void checkMPUDataReady(bool *mpuDataReadyPtr) {
     }
 }
 
-void setGyroLpf(uint8_t lpf) {
+void setGyroLpf(uint8_t lpf, int8_t gyro_soft_lpf) {
+
 	GyroLPF = lpf;
+
+    GyroFilterLevel = (float)gyro_soft_lpf / 10.0f;
+    GyroDownSample = (int)(GyroKHz / GyroLPF) * GyroFilterLevel; //ceil before casting to int? Nah, just do the calculations. Floats may alias data.
+
 }
