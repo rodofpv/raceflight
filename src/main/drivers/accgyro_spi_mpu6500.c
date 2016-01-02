@@ -20,6 +20,7 @@
 #include <stdlib.h>
 
 #include "platform.h"
+#include "debug.h"
 
 #include "common/axis.h"
 #include "common/maths.h"
@@ -43,11 +44,33 @@ extern uint16_t acc_1G;
 bool mpu6500WriteRegister(uint8_t reg, uint8_t data)
 {
     ENABLE_MPU6500;
+    delayMicroseconds(1);
     spiTransferByte(MPU6500_SPI_INSTANCE, reg);
     spiTransferByte(MPU6500_SPI_INSTANCE, data);
     DISABLE_MPU6500;
+    delayMicroseconds(1);
 
     return true;
+}
+
+bool verifympu6500WriteRegister(uint8_t reg, uint8_t data) {
+
+    uint8_t in;
+    uint8_t attemptsRemaining = 20;
+    static uint32_t loop = 0;
+    mpu6500WriteRegister(reg, data);
+    delayMicroseconds(100);
+
+    do {
+        mpu6500SlowReadRegister(reg, 1, &in);
+        if (in == data) {
+            return true;
+        } else {
+            mpu6500WriteRegister(reg, data);
+            delayMicroseconds(100);
+        }
+    } while (attemptsRemaining--);
+    return true; //returning false here causes a usage fault
 }
 
 bool mpu6500ReadRegister(uint8_t reg, uint8_t length, uint8_t *data)
@@ -55,6 +78,18 @@ bool mpu6500ReadRegister(uint8_t reg, uint8_t length, uint8_t *data)
     ENABLE_MPU6500;
     spiTransferByte(MPU6500_SPI_INSTANCE, reg | 0x80); // read transaction
     spiTransfer(MPU6500_SPI_INSTANCE, data, NULL, length);
+    DISABLE_MPU6500;
+
+    return true;
+}
+
+bool mpu6500SlowReadRegister(uint8_t reg, uint8_t length, uint8_t *data)
+{
+    ENABLE_MPU6500;
+    delayMicroseconds(1);
+    spiTransferByte(MPU6500_SPI_INSTANCE, reg | 0x80); // read transaction
+    spiTransfer(MPU6500_SPI_INSTANCE, data, NULL, length);
+    delayMicroseconds(1);
     DISABLE_MPU6500;
 
     return true;
@@ -111,11 +146,9 @@ bool mpu6500SpiDetect(void)
 
     mpu6500ReadRegister(MPU_RA_WHO_AM_I, 1, &tmp);
 
-    if (tmp == MPU9250_WHO_AM_I_CONST)
+    if (tmp == MPU6500_WHO_AM_I_CONST || tmp == MPU9250_WHO_AM_I_CONST) {
         return true;
-
-    if (tmp == MPU6500_WHO_AM_I_CONST)
-        return true;
+    }
 
     return false;
 }

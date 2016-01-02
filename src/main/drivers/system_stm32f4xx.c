@@ -31,6 +31,7 @@
 #include "accgyro_mpu.h"
 #include "accgyro_spi_mpu6000.h"
 #include "accgyro_mpu6500.h"
+#include "accgyro_spi_mpu9250.h"
 
 
 #define AIRCR_VECTKEY_MASK    ((uint32_t)0x05FA0000)
@@ -48,6 +49,8 @@ void systemResetToBootloader(void) {
 
 
 	resetGyro();
+
+	*((uint32_t *)0x2001FFFC) = 0xDEADBEEF; // 128KB SRAM STM32F4XX
 
 	__disable_irq();
 	NVIC_SystemReset();

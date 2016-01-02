@@ -41,9 +41,10 @@
 #include "accgyro_mpu6500.h"
 #include "accgyro_spi_mpu6000.h"
 #include "accgyro_spi_mpu6500.h"
+#include "accgyro_spi_mpu9250.h"
 #include "accgyro_mpu.h"
 
-//#define DEBUG_MPU_DATA_READY_INTERRUPT
+#define DEBUG_MPU_DATA_READY_INTERRUPT
 
 static bool mpuReadRegisterI2C(uint8_t reg, uint8_t length, uint8_t* data);
 static bool mpuWriteRegisterI2C(uint8_t reg, uint8_t data);
@@ -56,9 +57,9 @@ static bool filterFull = false;
 static int gyroADCnums = 0;
 #if defined(REVONANO) || defined(SPARKY2) || defined(ALIENFLIGHTF4) || defined(BLUEJAYF4) || defined(VRCORE) || defined(VRBRAIN)
 //#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
-#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
+#define gyroFilterLevel 2 //todo move to gyro_sync and calculate.
 #else
-#define gyroFilterLevel 8 //todo move to gyro_sync and calculate.
+#define gyroFilterLevel 2 //todo move to gyro_sync and calculate.
 #endif
 static int16_t gyroADCtable0[gyroFilterLevel];
 static int16_t gyroADCtable1[gyroFilterLevel];
@@ -66,6 +67,10 @@ static int16_t gyroADCtable2[gyroFilterLevel];
 static int32_t gyroTotal0 = 0;
 static int32_t gyroTotal1 = 0;
 static int32_t gyroTotal2 = 0;
+
+static int32_t timewatch[32];
+static int timewatchdog = 0;
+
 
 #ifdef USE_SPI
 static bool detectSPISensorsAndUpdateDetectionResult(void);
@@ -100,12 +105,15 @@ mpuDetectionResult_t *detectMpu(const extiConfig_t *configToUse)
 
 #ifndef USE_I2C
     ack = false;
+    sig = 0;
 #else
     ack = mpuReadRegisterI2C(MPU_RA_WHO_AM_I, 1, &sig);
 #endif
     if (ack) {
-        mpuConfiguration.read = mpuReadRegisterI2C;
-        mpuConfiguration.write = mpuWriteRegisterI2C;
+    	mpuConfiguration.read = mpuReadRegisterI2C;
+		mpuConfiguration.write = mpuWriteRegisterI2C;
+		mpuConfiguration.slowread = mpuReadRegisterI2C;
+		mpuConfiguration.verifywrite = mpuWriteRegisterI2C;
     } else {
 #ifdef USE_SPI
         bool detectedSpiSensor = detectSPISensorsAndUpdateDetectionResult();
@@ -148,6 +156,8 @@ static bool detectSPISensorsAndUpdateDetectionResult(void)
         mpuDetectionResult.sensor = MPU_65xx_SPI;
         mpuConfiguration.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
         mpuConfiguration.read = mpu6500ReadRegister;
+        mpuConfiguration.slowread = mpu6500SlowReadRegister;
+        mpuConfiguration.verifywrite = verifympu6500WriteRegister;
         mpuConfiguration.write = mpu6500WriteRegister;
         return true;
     }
@@ -158,9 +168,23 @@ static bool detectSPISensorsAndUpdateDetectionResult(void)
         mpuDetectionResult.sensor = MPU_60x0_SPI;
         mpuConfiguration.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
         mpuConfiguration.read = mpu6000ReadRegister;
+        mpuConfiguration.slowread = mpu6000SlowReadRegister;
+        mpuConfiguration.verifywrite = verifympu6000WriteRegister;
         mpuConfiguration.write = mpu6000WriteRegister;
         return true;
     }
+#endif
+
+#ifdef USE_GYRO_SPI_MPU9250
+	if (mpu9250SpiDetect()) {
+		mpuDetectionResult.sensor = MPU_9250_SPI;
+		mpuConfiguration.gyroReadXRegister = MPU_RA_GYRO_XOUT_H;
+		mpuConfiguration.read = mpu9250ReadRegister;
+        mpuConfiguration.slowread = mpu9250SlowReadRegister;
+        mpuConfiguration.verifywrite = verifympu9250WriteRegister;
+		mpuConfiguration.write = mpu9250WriteRegister;
+		return true;
+	}
 #endif
 
     return false;
@@ -233,20 +257,37 @@ void MPU_DATA_READY_EXTI_Handler(void)
         uint32_t callDelta = now - lastCalledAt;
 		debug[0] = callDelta;
 		lastCalledAt = now;
+		if (callDelta > 150) {
+			if (timewatchdog < 32) {
+				timewatch[timewatchdog] = 1;
+				timewatchdog++;
+			}
+		} else {
+			if (timewatchdog < 32) {
+				timewatch[timewatchdog] = 0;
+				timewatchdog++;
+			}
+		}
+		if (timewatchdog == 32) {
+			debug[2]=timewatch[0] << 0 | timewatch[1] << 1 | timewatch[2] << 2  | timewatch[3] << 3  | timewatch[4] << 4  | timewatch[5] << 5  | timewatch[6] << 6  | timewatch[7] << 7 | timewatch[8] << 8 | timewatch[9] << 9 | timewatch[10]<< 10 | timewatch[11]<< 11 | timewatch[12]<< 12 | timewatch[13]<< 13 | timewatch[14]<< 14 | timewatch[15]<< 15;
+			debug[3]=timewatch[16]<< 0 | timewatch[17]<< 1 | timewatch[18]<< 2  | timewatch[19]<< 3  | timewatch[20]<< 4  | timewatch[21]<< 5  | timewatch[22]<< 6  | timewatch[23]<< 7 | timewatch[24]<< 8 | timewatch[25]<< 9 | timewatch[26]<< 10 | timewatch[27]<< 11 | timewatch[28]<< 12 | timewatch[29]<< 13 | timewatch[30]<< 14 | timewatch[31]<< 15;
+			debug[1]++;
+			timewatchdog=0;
+		}
 #endif
 
 
 		gyro_i_count++;
 		mpuGyroReadCollect();
 
-		if (gyro_i_count >= gyroFilterLevel / 4) {
+		if (gyro_i_count >= gyroFilterLevel) {
 
 
 #ifdef DEBUG_MPU_DATA_READY_INTERRUPT
 			static uint32_t lastCalledAt1 = 0;
 			uint32_t now1 = micros();
 	        uint32_t callDelta1 = now1 - lastCalledAt1;
-	        debug[1] = callDelta1;
+	        //debug[1] = callDelta1;
     		lastCalledAt1 = now;
 #endif
 			gyro_i_count = 0;
@@ -602,6 +643,9 @@ bool mpuAccRead(int16_t *accData)
 
 bool mpuGyroReadCollect(void)
 {
+	if (gyroFilterLevel == 1) {
+		return true; //no filtering or downsampling needed
+	}
     uint8_t data[6];
 
     bool ack = mpuConfiguration.read(mpuConfiguration.gyroReadXRegister, 6, data);
@@ -647,9 +691,9 @@ bool mpuGyroRead(int16_t *gyroADC)
 
 	} else {
 
-		gyroADC[0] = (int16_t)( ( gyroTotal0 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
-		gyroADC[1] = (int16_t)( ( gyroTotal1 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
-		gyroADC[2] = (int16_t)( ( gyroTotal2 + (int)(gyroFilterLevel/2) ) / gyroFilterLevel);
+		gyroADC[0] = (int16_t)( ( gyroTotal0 ) / gyroFilterLevel);
+		gyroADC[1] = (int16_t)( ( gyroTotal1 ) / gyroFilterLevel);
+		gyroADC[2] = (int16_t)( ( gyroTotal2 ) / gyroFilterLevel);
 
 	}
 
