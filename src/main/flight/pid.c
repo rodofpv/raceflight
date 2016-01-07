@@ -52,18 +52,7 @@ extern float dT;
 extern bool motorLimitReached;
 extern bool allowITermShrinkOnly;
 
-static bool currently_at_zero0 = false;
-static int8_t p_term_direction0 = 0;
-static bool currently_at_zero1 = false;
-static int8_t p_term_direction1 = 0;
-
 int16_t axisPID[3];
-float factor0;
-float factor1;
-float wow_factor0;
-float wow_factor1;
-float acro_plus_ki_scaler = 1.0f;
-float yaw_kp_multiplier = 1.0f;
 
 #ifdef BLACKBOX
 int32_t axisPID_P[3], axisPID_I[3], axisPID_D[3];
@@ -94,10 +83,50 @@ void pidResetErrorGyro(void)
     errorGyroIf[YAW] = 0.0f;
 }
 
+void applyAcroPlus(acroPlus_t *axisState, int axis, controlRateConfig_t *controlRateConfig, float referenceTerm) {
+    float rcCommandReflection = (float)rcCommand[axis] / 500.0f;
+
+    //Ki scaler
+    axisState->iTermScaler = constrainf(1.0f - (1.5f * ABS(rcCommandReflection)), 0.0f, 1.0f);
+
+    //dynamic Ki handler
+    if (axisState->isCurrentlyAtZero) {
+        if (axisState->previousReferenceIsPositive ^ IS_POSITIVE(referenceTerm)) {
+            axisState->isCurrentlyAtZero = false;
+        } else {
+            axisState->iTermScaler = 0;
+            errorGyroIf[axis] = 0;
+            errorGyroI[axis] = 0;
+        }
+    }
+
+    if (!axisState->iTermScaler) {
+        if (!axisState->isCurrentlyAtZero) {
+            if (IS_POSITIVE(referenceTerm)) {
+                axisState->previousReferenceIsPositive = true;
+            } else {
+                axisState->previousReferenceIsPositive = false;
+            }
+        } else {
+            axisState->isCurrentlyAtZero = true;
+        }
+    }
+
+    if (axis != YAW) {
+        axisState->wowFactor = ABS(rcCommandReflection) * ((float)controlRateConfig->rcRate8 / 100.0f); //0-1f
+        axisState->factor = axisState->wowFactor * (rcCommand[axis] / 500.0f) * 1000;
+        axisState->wowFactor = 1.0f - axisState->wowFactor;
+    } else {
+        axisState->wowFactor = 1;
+        axisState->factor = 0;
+    }
+}
+
 const angle_index_t rcAliasToAngleIndexMap[] = { AI_ROLL, AI_PITCH };
 
 static filterStatePt1_t DTermState[3];
 static filterStatePt1_t yawPTermState;
+static acroPlus_t acroPlusAxisState[3];
 
 static void pidLuxFloat(pidProfile_t *pidProfile, controlRateConfig_t *controlRateConfig,
         uint16_t max_angle_inclination, rollAndPitchTrims_t *angleTrim, rxConfig_t *rxConfig)
@@ -174,89 +203,21 @@ static void pidLuxFloat(pidProfile_t *pidProfile, controlRateConfig_t *controlRa
         RateError = AngleRate - gyroRate;
 
         // -----calculate P component
-        if (axis == 2) {
-        	PTerm = RateError * (pidProfile->P_f[axis]/4) * yaw_kp_multiplier * PIDweight[axis] / 100;
-        } else {
-        	PTerm = RateError * (pidProfile->P_f[axis]/4) * PIDweight[axis] / 100;
-        }
+        PTerm = RateError * (pidProfile->P_f[axis]/4) * PIDweight[axis] / 100;
+
 
         if (axis == YAW && pidProfile->yaw_pterm_cut_hz) {
             PTerm = filterApplyPt1(PTerm, &yawPTermState, pidProfile->yaw_pterm_cut_hz, dT);
         }
 
+        // -----calculate I component.
+        errorGyroIf[axis] = constrainf(errorGyroIf[axis] + 0.5f * (lastError[axis] + RateError) * dT * (pidProfile->I_f[axis]/4)  * 10, -250.0f, 250.0f);
 
-        if ( (axis != YAW) && (IS_RC_MODE_ACTIVE(BOXACROPLUS)) ) {
-
-        	//Ki scaler
-        	acro_plus_ki_scaler = constrainf(1.0f - (1.5f * fabsf((float)rcCommand[axis]) / 500.0f ), 0.0f, 1.0f);
-
-        	//dynamic Ki handler
-			if (axis==0) {
-				if (currently_at_zero0 && (p_term_direction0 == 1) && (PTerm <= 0)) {
-					currently_at_zero0 = false;
-				} else if (currently_at_zero0 && (p_term_direction0 == -1) && (PTerm >= 0)) {
-					currently_at_zero0 = false;
-				} else if (currently_at_zero0) {
-					acro_plus_ki_scaler = 0;
-					errorGyroIf[axis] = 0;
-				}
-
-				if (acro_plus_ki_scaler == 0) {
-					if (!currently_at_zero0 && PTerm >= 0) {
-						p_term_direction0 = 1;
-					} else if (!currently_at_zero0 && PTerm < 0) {
-						p_term_direction0 = -1;
-					}
-					currently_at_zero0 = true;
-				}
-
-				if (IS_RC_MODE_ACTIVE(BOXTEST1)) {
-					yaw_kp_multiplier = 2.0f-(1.0f*acro_plus_ki_scaler);
-				} else if (IS_RC_MODE_ACTIVE(BOXTEST2)) {
-					yaw_kp_multiplier = 1.5f-(0.5f*acro_plus_ki_scaler);
-				} else {
-					yaw_kp_multiplier = 1.0f;
-				}
-
-			} else if (axis==1) {
-				if (currently_at_zero1 && (p_term_direction1 == 1) && (PTerm <= 0)) {
-					currently_at_zero1 = false; //test pitch differently
-				} else if (currently_at_zero1 && (p_term_direction1 == -1) && (PTerm >= 0)) {
-					currently_at_zero1 = false; //test pitch differently
-				} else if (acro_plus_ki_scaler == 0) {
-					acro_plus_ki_scaler = 0;
-					errorGyroIf[axis] = 0;
-				}
-
-				if (acro_plus_ki_scaler == 0) {
-					if (!currently_at_zero1 && PTerm >= 0) {
-						p_term_direction1 = 1;
-					} else if (!currently_at_zero1 && PTerm < 0) {
-						p_term_direction1 = -1;
-					}
-					currently_at_zero1 = true; //test pitch differently
-				} //else { //test pitch differently
-					//currently_at_zero1 = false; //test pitch differently
-				//} //test pitch differently
-			}
-
-        	if (axis == 0) {
-        		wow_factor0 = fabsf(rcCommand[axis] / 500.0f) * ((float)controlRateConfig->rcRate8 / 100.0f); //0-1f
-				factor0 = wow_factor0 * (rcCommand[axis] / 500.0f);
-        	} else if (axis == 1) {
-        		wow_factor1 = fabsf(rcCommand[axis] / 500.0f) * ((float)controlRateConfig->rcRate8 / 100.0f); //0-1f
-				factor1 = wow_factor1 * (rcCommand[axis] / 500.0f);
-        	}
-
-        } else {
-
-        	acro_plus_ki_scaler = 1;
-
+        if (IS_RC_MODE_ACTIVE(BOXACROPLUS)) {
+            applyAcroPlus(&acroPlusAxisState[axis], axis, controlRateConfig, PTerm);
+            errorGyroIf[axis] *= acroPlusAxisState[axis].iTermScaler;
         }
 
-        // -----calculate I component.
-        errorGyroIf[axis] *= acro_plus_ki_scaler;
-        errorGyroIf[axis] = constrainf(errorGyroIf[axis] + 0.5f * (lastError[axis] + RateError) * dT * (pidProfile->I_f[axis]/4)  * 10, -250.0f, 250.0f);
 
         if ( (IS_RC_MODE_ACTIVE(BOXAIRMODE)) && (allowITermShrinkOnly || motorLimitReached) ) {
             if (ABS(errorGyroIf[axis]) < ABS(previousErrorGyroIf[axis])) {
@@ -302,6 +263,10 @@ static void pidLuxFloat(pidProfile_t *pidProfile, controlRateConfig_t *controlRa
 
         // -----calculate total PID output
         axisPID[axis] = constrain(lrintf(PTerm + ITerm + DTerm), -1000, 1000);
+
+        if (IS_RC_MODE_ACTIVE(BOXACROPLUS)) {
+            axisPID[axis] = lrintf(acroPlusAxisState[axis].factor + acroPlusAxisState[axis].wowFactor * axisPID[axis]);
+        }
 
 #ifdef GTUNE
         if (FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {
@@ -417,7 +382,12 @@ static void pidRewrite(pidProfile_t *pidProfile, controlRateConfig_t *controlRat
             previousErrorGyroI[axis] = errorGyroI[axis];
         }
 
-        ITerm = (int32_t)((errorGyroI[axis] >> 13) * acro_plus_ki_scaler);
+        if (IS_RC_MODE_ACTIVE(BOXACROPLUS)) {
+            applyAcroPlus(&acroPlusAxisState[axis], axis, controlRateConfig, (float) PTerm);
+            errorGyroI[axis] *= acroPlusAxisState[axis].iTermScaler;
+        }
+
+        ITerm = (int32_t)(errorGyroI[axis] >> 13);
 
         //-----calculate D-term
         delta = RateError - lastError[axis]; // 16 bits is ok here, the dif between 2 consecutive gyro reads is limited to 800
@@ -442,6 +412,10 @@ static void pidRewrite(pidProfile_t *pidProfile, controlRateConfig_t *controlRat
 
         // -----calculate total PID output
         axisPID[axis] = PTerm + ITerm + DTerm;
+
+        if (IS_RC_MODE_ACTIVE(BOXACROPLUS)) {
+            axisPID[axis] = lrintf(acroPlusAxisState[axis].factor + acroPlusAxisState[axis].wowFactor * axisPID[axis]);
+        }
 
 #ifdef GTUNE
         if (FLIGHT_MODE(GTUNE_MODE) && ARMING_FLAG(ARMED)) {
