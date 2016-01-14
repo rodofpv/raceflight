@@ -2365,7 +2365,7 @@ static void cliTasks(char *cmdline)
 static void cliVersion(char *cmdline)
 {
     UNUSED(cmdline);
-    printf("# RaceFlight 16.01.02a - MPU9250 Driver. 4KHz /%s %s %s / %s (%s)",
+    printf("# RaceFlight 16.01.13b - 32KHz - Acro+ /%s %s %s / %s (%s)",
         targetName,
         FC_VERSION_STRING,
         buildDate,
