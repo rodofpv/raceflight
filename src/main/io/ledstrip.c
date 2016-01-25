@@ -52,6 +52,8 @@
 static bool ledStripInitialised = false;
 static bool ledStripEnabled = true;
 
+uint8_t ledRingIndex;
+
 static void ledStripDisable(void);
 
 //#define USE_LED_ANIMATION
@@ -961,7 +963,8 @@ void updateLedStrip(void)
     }
 
     if (feature(FEATURE_KNIGHTRIDER) ) {
-    	static uint32_t time_since_last_run = micros();
+    	static uint32_t time_since_last_run = 0;
+    	time_since_last_run = micros();
     	if (micros() - time_since_last_run >= 42000) {
     		time_since_last_run = micros();
         	knight_rider();
@@ -972,8 +975,8 @@ void updateLedStrip(void)
 
 void knight_rider(void) {
 
-	static uint8_t pos;
-	static int dir 1;
+	static int pos;
+	static int dir = 1;
     uint8_t ledIndex;
     hsvColor_t ringColor;
 
