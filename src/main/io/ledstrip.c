@@ -960,7 +960,52 @@ void updateLedStrip(void)
         nextRotationUpdateAt = now + LED_STRIP_5HZ/animationSpeedScale;
     }
 
+    if (feature(FEATURE_KNIGHTRIDER) ) {
+    	static uint32_t time_since_last_run = micros();
+    	if (micros() - time_since_last_run >= 42000) {
+    		time_since_last_run = micros();
+        	knight_rider();
+    	}
+    }
     ws2811UpdateStrip();
+}
+
+void knight_rider(void) {
+
+	static uint8_t pos;
+	static int dir 1;
+    uint8_t ledIndex;
+    hsvColor_t ringColor;
+
+    //reset strip
+    for (ledIndex = 0; ledIndex < ledCount; ledIndex++) {
+        ringColor = hsv_black;
+        setLedHsv(ledIndex, &ringColor);
+        ledRingIndex++;
+    }
+
+    if (pos-1 >= 0 && pos-1 <= MAX_LED_STRIP_LENGTH) {
+    	ringColor = hsv_orange;
+		setLedHsv(pos - 1, &ringColor);
+    }
+    if (pos >= 0 && pos <= MAX_LED_STRIP_LENGTH) {
+    	ringColor = hsv_red;
+		setLedHsv(pos, &ringColor);
+    }
+    if (pos+1 >= 0 && pos+1 <= MAX_LED_STRIP_LENGTH) {
+    	ringColor = hsv_orange;
+		setLedHsv(pos + 1, &ringColor);
+    }
+
+    pos += dir;
+    if ( pos < 0 ) {
+    	pos = 1;
+    	dir = -dir;
+    } else if (pos >= MAX_LED_STRIP_LENGTH) {
+    	pos = MAX_LED_STRIP_LENGTH - 2;
+    	dir = -dir;
+    }
+
 }
 
 bool parseColor(uint8_t index, const char *colorConfig)

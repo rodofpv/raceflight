@@ -48,6 +48,7 @@ typedef enum {
 	FEATURE_MULTISHOT_PWM_RATE = 1 << 23,
 	FEATURE_TX_STYLE_EXPO = 1 << 24,
 	FEATURE_SBUS_INVERTER = 1 << 25,
+	FEATURE_KNIGHTRIDER = 1 << 26,
 } features_e;
 
 void handleOneshotFeatureChangeOnRestart(void);

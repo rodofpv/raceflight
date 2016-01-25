@@ -163,6 +163,18 @@
 
 #define USE_ADC
 
+#define CURRENT_METER_ADC_GPIO      GPIOC
+#define CURRENT_METER_ADC_GPIO_PIN  GPIO_Pin_2
+#define CURRENT_METER_ADC_CHANNEL   ADC_Channel_12
+
+#define VBAT_ADC_GPIO               GPIOC
+#define VBAT_ADC_GPIO_PIN           GPIO_Pin_3
+#define VBAT_ADC_CHANNEL            ADC_Channel_12
+
+#define RSSI_ADC_GPIO               GPIOC
+#define RSSI_ADC_GPIO_PIN           GPIO_Pin_1
+#define RSSI_ADC_CHANNEL            ADC_Channel_11
+
 #define LED_STRIP
 #define LED_STRIP_TIMER TIM5
 
