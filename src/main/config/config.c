@@ -162,7 +162,7 @@ static void resetAccelerometerTrims(flightDynamicsTrims_t *accelerometerTrims)
 
 static void resetPidProfile(pidProfile_t *pidProfile)
 {
-    pidProfile->pidController = 2; //default is LUX
+    pidProfile->pidController = 1;
 
     pidProfile->P8[ROLL] = 42;
     pidProfile->I8[ROLL] = 40;
@@ -170,9 +170,9 @@ static void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->P8[PITCH] = 54;
     pidProfile->I8[PITCH] = 40;
     pidProfile->D8[PITCH] = 18;
-    pidProfile->P8[YAW] = 100;
+    pidProfile->P8[YAW] = 90;
     pidProfile->I8[YAW] = 50;
-    pidProfile->D8[YAW] = 5;
+    pidProfile->D8[YAW] = 0;
     pidProfile->P8[PIDALT] = 50;
     pidProfile->I8[PIDALT] = 0;
     pidProfile->D8[PIDALT] = 0;
@@ -185,8 +185,8 @@ static void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->P8[PIDNAVR] = 25; // NAV_P * 10;
     pidProfile->I8[PIDNAVR] = 33; // NAV_I * 100;
     pidProfile->D8[PIDNAVR] = 83; // NAV_D * 1000;
-    pidProfile->P8[PIDLEVEL] = 55;
-    pidProfile->I8[PIDLEVEL] = 55;
+    pidProfile->P8[PIDLEVEL] = 30;
+    pidProfile->I8[PIDLEVEL] = 30;
     pidProfile->D8[PIDLEVEL] = 100;
     pidProfile->P8[PIDMAG] = 40;
     pidProfile->P8[PIDVEL] = 120;
@@ -194,6 +194,7 @@ static void resetPidProfile(pidProfile_t *pidProfile)
     pidProfile->D8[PIDVEL] = 1;
 
     pidProfile->gyro_lpf_hz = 60;    // filtering ON by default
+    pidProfile->deltaMethod = DELTA_FROM_MEASUREMENT;
 
 #if defined(STM32F411xE) || defined(STM32F40_41xxx)
     pidProfile->dterm_lpf_hz = 60;   // filtering ON by default
@@ -302,6 +303,7 @@ void resetBatteryConfig(batteryConfig_t *batteryConfig)
     batteryConfig->vbatmaxcellvoltage = 43;
     batteryConfig->vbatmincellvoltage = 33;
     batteryConfig->vbatwarningcellvoltage = 35;
+    batteryConfig->vbatPidCompensation = 0;
     batteryConfig->currentMeterOffset = 0;
     batteryConfig->currentMeterScale = 400; // for Allegro ACS758LCB-100U (40mV/A)
     batteryConfig->batteryCapacity = 0;
@@ -331,7 +333,7 @@ void resetSerialConfig(serialConfig_t *serialConfig)
 
     serialConfig->portConfigs[0].functionMask = FUNCTION_MSP;
 
-#ifdef CC3D 
+#if defined(USE_VCP)
     // This allows MSP connection via USART & VCP so the board can be reconfigured.
     serialConfig->portConfigs[1].functionMask = FUNCTION_MSP;
 #endif
@@ -369,6 +371,7 @@ void resetRcControlsConfig(rcControlsConfig_t *rcControlsConfig) {
 
 void resetMixerConfig(mixerConfig_t *mixerConfig) {
     mixerConfig->yaw_motor_direction = 1;
+    mixerConfig->airmode_saturation_limit = 50;
     mixerConfig->yaw_jump_prevention_limit = 200;
 #ifdef USE_SERVOS
     mixerConfig->tri_unarmed_servo = 1;
@@ -385,6 +388,7 @@ uint8_t getCurrentProfile(void)
 static void setProfile(uint8_t profileIndex)
 {
     currentProfile = &masterConfig.profile[profileIndex];
+    currentControlRateProfile = &currentProfile->controlRateProfile;
 }
 
 uint8_t getCurrentControlRateProfile(void)
@@ -393,13 +397,7 @@ uint8_t getCurrentControlRateProfile(void)
 }
 
 controlRateConfig_t *getControlRateConfig(uint8_t profileIndex) {
-    return &masterConfig.controlRateProfiles[profileIndex];
-}
-
-static void setControlRateProfile(uint8_t profileIndex)
-{
-    currentControlRateProfileIndex = profileIndex;
-    currentControlRateProfile = &masterConfig.controlRateProfiles[profileIndex];
+    return &masterConfig.profile[profileIndex].controlRateProfile;
 }
 
 uint16_t getCurrentMinthrottle(void)
@@ -414,17 +412,19 @@ static void resetConf(void)
 
     // Clear all configuration
     memset(&masterConfig, 0, sizeof(master_t));
-
     setProfile(0);
-    setControlRateProfile(0);
 
     masterConfig.beeper_off.flags = BEEPER_OFF_FLAGS_MIN;
     masterConfig.version = EEPROM_CONF_VERSION;
     masterConfig.mixerMode = MIXER_QUADX;
     featureClearAll();
-#if defined(CJMCU) || defined(SPARKY) || defined(COLIBRI_RACE) || defined(MOTOLAB)
+#if defined(CJMCU) || defined(SPARKY) || defined(COLIBRI_RACE) || defined(MOTOLAB) || defined(SPRACINGF3MINI) || defined(LUX_RACE)
     featureSet(FEATURE_RX_PPM);
 #endif
+
+//#if defined(SPRACINGF3MINI)
+//    featureSet(FEATURE_DISPLAY);
+//#endif
 
 #ifdef BOARD_HAS_VOLTAGE_DIVIDER
     // only enable the VBAT feature by default if the board has a voltage divider otherwise
@@ -440,6 +440,9 @@ static void resetConf(void)
     masterConfig.current_profile_index = 0;     // default profile
     masterConfig.dcm_kp = 2500;                // 1.0 * 10000
     masterConfig.dcm_ki = 0;                    // 0.003 * 10000
+    masterConfig.gyro_lpf = 1;                 // 188HZ
+    masterConfig.gyro_sync_denom = 1;
+    masterConfig.gyro_soft_lpf_hz = 60;
 
     resetAccelerometerTrims(&masterConfig.accZero);
 
@@ -542,29 +545,26 @@ static void resetConf(void)
 
     resetPidProfile(&currentProfile->pidProfile);
 
-    resetControlRateConfig(&masterConfig.controlRateProfiles[0]);
+    resetControlRateConfig(&masterConfig.profile[0].controlRateProfile);
 
-    // for (i = 0; i < CHECKBOXITEMS; i++)
-    //     cfg.activate[i] = 0;
+    resetRollAndPitchTrims(&masterConfig.accelerometerTrims);
 
-    resetRollAndPitchTrims(&currentProfile->accelerometerTrims);
+    masterConfig.mag_declination = 0;
+    masterConfig.acc_lpf_hz = 20;
+    masterConfig.accz_lpf_cutoff = 5.0f;
+    masterConfig.accDeadband.xy = 40;
+    masterConfig.accDeadband.z = 40;
+    masterConfig.acc_unarmedcal = 1;
 
-    currentProfile->mag_declination = 0;
-    currentProfile->acc_lpf_hz = 20;
-    currentProfile->accz_lpf_cutoff = 5.0f;
-    currentProfile->accDeadband.xy = 40;
-    currentProfile->accDeadband.z = 40;
-    currentProfile->acc_unarmedcal = 1;
-
-    resetBarometerConfig(&currentProfile->barometerConfig);
+    resetBarometerConfig(&masterConfig.barometerConfig);
 
     // Radio
     parseRcChannels("AETR1234", &masterConfig.rxConfig);
 
-    resetRcControlsConfig(&currentProfile->rcControlsConfig);
+    resetRcControlsConfig(&masterConfig.rcControlsConfig);
 
-    currentProfile->throttle_correction_value = 0;      // could 10 with althold or 40 for fpv
-    currentProfile->throttle_correction_angle = 800;    // could be 80.0 deg with atlhold or 45.0 for fpv
+    masterConfig.throttle_correction_value = 0;      // could 10 with althold or 40 for fpv
+    masterConfig.throttle_correction_angle = 800;    // could be 80.0 deg with atlhold or 45.0 for fpv
 
     // Failsafe Variables
     masterConfig.failsafeConfig.failsafe_delay = 10;              // 1sec
@@ -572,25 +572,26 @@ static void resetConf(void)
     masterConfig.failsafeConfig.failsafe_throttle = 1000;         // default throttle off.
     masterConfig.failsafeConfig.failsafe_kill_switch = 0;         // default failsafe switch action is identical to rc link loss
     masterConfig.failsafeConfig.failsafe_throttle_low_delay = 100; // default throttle low delay for "just disarm" on failsafe condition
+    masterConfig.failsafeConfig.failsafe_procedure = 0;           // default full failsafe procedure is 0: auto-landing
 
 #ifdef USE_SERVOS
     // servos
     for (i = 0; i < MAX_SUPPORTED_SERVOS; i++) {
-        currentProfile->servoConf[i].min = DEFAULT_SERVO_MIN;
-        currentProfile->servoConf[i].max = DEFAULT_SERVO_MAX;
-        currentProfile->servoConf[i].middle = DEFAULT_SERVO_MIDDLE;
-        currentProfile->servoConf[i].rate = 100;
-        currentProfile->servoConf[i].angleAtMin = DEFAULT_SERVO_MIN_ANGLE;
-        currentProfile->servoConf[i].angleAtMax = DEFAULT_SERVO_MAX_ANGLE;
-        currentProfile->servoConf[i].forwardFromChannel = CHANNEL_FORWARDING_DISABLED;
+    	masterConfig.servoConf[i].min = DEFAULT_SERVO_MIN;
+    	masterConfig.servoConf[i].max = DEFAULT_SERVO_MAX;
+    	masterConfig.servoConf[i].middle = DEFAULT_SERVO_MIDDLE;
+    	masterConfig.servoConf[i].rate = 100;
+    	masterConfig.servoConf[i].angleAtMin = DEFAULT_SERVO_MIN_ANGLE;
+    	masterConfig.servoConf[i].angleAtMax = DEFAULT_SERVO_MAX_ANGLE;
+    	masterConfig.servoConf[i].forwardFromChannel = CHANNEL_FORWARDING_DISABLED;
     }
 
     // gimbal
-    currentProfile->gimbalConfig.mode = GIMBAL_MODE_NORMAL;
+    masterConfig.gimbalConfig.mode = GIMBAL_MODE_NORMAL;
 #endif
 
 #ifdef GPS
-    resetGpsProfile(&currentProfile->gpsProfile);
+    resetGpsProfile(&masterConfig.gpsProfile);
 #endif
 
     // custom mixer. clear by defaults.
@@ -630,42 +631,6 @@ static void resetConf(void)
 
     // alternative defaults settings for COLIBRI RACE targets
 #if defined(COLIBRI_RACE)
-    currentProfile->pidProfile.pidController = 1;
-
-    masterConfig.rxConfig.rcmap[0] = 1;
-    masterConfig.rxConfig.rcmap[1] = 2;
-    masterConfig.rxConfig.rcmap[2] = 3;
-    masterConfig.rxConfig.rcmap[3] = 0;
-    masterConfig.rxConfig.rcmap[4] = 4;
-    masterConfig.rxConfig.rcmap[5] = 5;
-    masterConfig.rxConfig.rcmap[6] = 6;
-    masterConfig.rxConfig.rcmap[7] = 7;
-
-    masterConfig.rxConfig.rcSmoothing = 0;
-    currentProfile->pidProfile.pidController = 2;
-
-    currentProfile->pidProfile.P_f[ROLL] = 0.7f;     // new PID with preliminary defaults test carefully
-    currentProfile->pidProfile.I_f[ROLL] = 0.4f;
-    currentProfile->pidProfile.D_f[ROLL] = 0.025f;
-    currentProfile->pidProfile.P_f[PITCH] = 1.5f;
-    currentProfile->pidProfile.I_f[PITCH] = 0.4f;
-    currentProfile->pidProfile.D_f[PITCH] = 0.035f;
-    currentProfile->pidProfile.P_f[YAW] = 3.5f;
-    currentProfile->pidProfile.I_f[YAW] = 0.9f;
-    currentProfile->pidProfile.D_f[YAW] = 0.01f;
-
-    masterConfig.controlRateProfiles[0].rcRate8 = 100;
-    masterConfig.controlRateProfiles[0].rcExpo8 = 70;
-    masterConfig.controlRateProfiles[0].rcYawExpo8 = 70;
-    masterConfig.controlRateProfiles[0].thrMid8 = 50;
-    masterConfig.controlRateProfiles[0].thrExpo8 = 0;
-    masterConfig.controlRateProfiles[0].rates[FD_ROLL] = 90;
-    masterConfig.controlRateProfiles[0].rates[FD_PITCH] = 90;
-    masterConfig.controlRateProfiles[0].rates[FD_YAW] = 90;
-    masterConfig.controlRateProfiles[0].dynThrPID = 30;
-    masterConfig.controlRateProfiles[0].tpa_breakpoint = 1500;
-    masterConfig.profile[0].rcControlsConfig.deadband = 10;
-
     masterConfig.escAndServoConfig.minthrottle = 1025;
     masterConfig.escAndServoConfig.maxthrottle = 1980;
     masterConfig.batteryConfig.vbatmaxcellvoltage = 45;
@@ -767,14 +732,6 @@ static void resetConf(void)
         memcpy(&masterConfig.profile[i], currentProfile, sizeof(profile_t));
     }
 
-    // copy first control rate config into remaining profile
-    for (i = 1; i < MAX_CONTROL_RATE_PROFILE_COUNT; i++) {
-        memcpy(&masterConfig.controlRateProfiles[i], currentControlRateProfile, sizeof(controlRateConfig_t));
-    }
-
-    for (i = 1; i < MAX_PROFILE_COUNT; i++) {
-        masterConfig.profile[i].defaultRateProfileIndex = i % MAX_CONTROL_RATE_PROFILE_COUNT;
-    }
 }
 
 static uint8_t calculateChecksum(const uint8_t *data, uint32_t length)
@@ -824,12 +781,12 @@ void activateConfig(void)
     resetAdjustmentStates();
 
     useRcControlsConfig(
-        currentProfile->modeActivationConditions,
+    	masterConfig.modeActivationConditions,
         &masterConfig.escAndServoConfig,
         &currentProfile->pidProfile
     );
 
-    useGyroConfig(&masterConfig.gyroConfig, currentProfile->pidProfile.gyro_lpf_hz);
+    useGyroConfig(&masterConfig.gyroConfig, masterConfig.gyro_lpf_hz);
 
 #ifdef TELEMETRY
     telemetryUseConfig(&masterConfig.telemetryConfig);
@@ -838,7 +795,7 @@ void activateConfig(void)
     pidSetController(currentProfile->pidProfile.pidController);
 
 #ifdef GPS
-    gpsUseProfile(&currentProfile->gpsProfile);
+    gpsUseProfile(&masterConfig.gpsProfile);
     gpsUsePIDs(&currentProfile->pidProfile);
 #endif
 
@@ -847,8 +804,8 @@ void activateConfig(void)
 
     mixerUseConfigs(
 #ifdef USE_SERVOS
-        currentProfile->servoConf,
-        &currentProfile->gimbalConfig,
+    	masterConfig.servoConf,
+        &masterConfig.gimbalConfig,
 #endif
         &masterConfig.flight3DConfig,
         &masterConfig.escAndServoConfig,
@@ -859,27 +816,27 @@ void activateConfig(void)
 
     imuRuntimeConfig.dcm_kp = masterConfig.dcm_kp / 10000.0f;
     imuRuntimeConfig.dcm_ki = masterConfig.dcm_ki / 10000.0f;
-    imuRuntimeConfig.acc_cut_hz = currentProfile->acc_lpf_hz;
-    imuRuntimeConfig.acc_unarmedcal = currentProfile->acc_unarmedcal;
+    imuRuntimeConfig.acc_cut_hz = masterConfig.acc_lpf_hz;
+    imuRuntimeConfig.acc_unarmedcal = masterConfig.acc_unarmedcal;
     imuRuntimeConfig.small_angle = masterConfig.small_angle;
 
     imuConfigure(
         &imuRuntimeConfig,
         &currentProfile->pidProfile,
-        &currentProfile->accDeadband,
-        currentProfile->accz_lpf_cutoff,
-        currentProfile->throttle_correction_angle
+        &masterConfig.accDeadband,
+		masterConfig.accz_lpf_cutoff,
+		masterConfig.throttle_correction_angle
     );
 
     configureAltitudeHold(
         &currentProfile->pidProfile,
-        &currentProfile->barometerConfig,
-        &currentProfile->rcControlsConfig,
+        &masterConfig.barometerConfig,
+        &masterConfig.rcControlsConfig,
         &masterConfig.escAndServoConfig
     );
 
 #ifdef BARO
-    useBarometerConfig(&currentProfile->barometerConfig);
+    useBarometerConfig(&masterConfig.barometerConfig);
 #endif
 }
 
@@ -968,7 +925,7 @@ void validateAndFixConfig(void)
     }
 #endif
 
-#if defined(COLIBRI_RACE) || defined(LUX_RACE)
+#if defined(COLIBRI_RACE)
     masterConfig.serialConfig.portConfigs[0].functionMask = FUNCTION_MSP;
     if(featureConfigured(FEATURE_RX_PARALLEL_PWM) || featureConfigured(FEATURE_RX_MSP)) {
         featureClear(FEATURE_RX_PARALLEL_PWM);
@@ -1009,11 +966,6 @@ void readEEPROM(void)
         masterConfig.current_profile_index = 0;
 
     setProfile(masterConfig.current_profile_index);
-
-    if (currentProfile->defaultRateProfileIndex > MAX_CONTROL_RATE_PROFILE_COUNT - 1) // sanity check
-        currentProfile->defaultRateProfileIndex = 0;
-
-    setControlRateProfile(currentProfile->defaultRateProfileIndex);
 
     validateAndFixConfig();
     activateConfig();
@@ -1126,15 +1078,6 @@ void changeProfile(uint8_t profileIndex)
     writeEEPROM();
     readEEPROM();
     beeperConfirmationBeeps(profileIndex + 1);
-}
-
-void changeControlRateProfile(uint8_t profileIndex)
-{
-    if (profileIndex > MAX_CONTROL_RATE_PROFILE_COUNT) {
-        profileIndex = MAX_CONTROL_RATE_PROFILE_COUNT - 1;
-    }
-    setControlRateProfile(profileIndex);
-    activateControlRateConfig();
 }
 
 void handleOneshotFeatureChangeOnRestart(void)
