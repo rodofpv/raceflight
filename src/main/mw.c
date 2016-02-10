@@ -180,20 +180,9 @@ void filterRc(void){
     static int16_t deltaRC[4] = { 0, 0, 0, 0 };
     static int16_t factor, rcInterpolationFactor;
     uint16_t rxRefreshRate;
-    static biquad_t filteredCycleTimeState;
-    static bool filterIsSet;
-    uint16_t filteredCycleTime;
 
     // Set RC refresh rate for sampling and channels to filter
     initRxRefreshRate(&rxRefreshRate);
-
-	/* Initialize cycletime filter */
-	 if (!filterIsSet) {
-		 BiQuadNewLpf(1, &filteredCycleTimeState, 0);
-		 filterIsSet = true;
-	 }
-
-         filteredCycleTime = applyBiQuadFilter((float) cycleTime, &filteredCycleTimeState);
 
     rcInterpolationFactor = rxRefreshRate / filteredCycleTime + 1;
 
@@ -310,7 +299,7 @@ void annexCode(void)
         rcCommand[PITCH] = rcCommand_PITCH;
     }
 
-    if (masterConfig.rxConfig.rcSmoothing) {
+    if (masterConfig.rxConfig.rcSmoothing || flightModeFlags) {
         filterRc();
     }
 
