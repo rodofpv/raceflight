@@ -44,6 +44,8 @@
 #include "accgyro_spi_mpu9250.h"
 #include "accgyro_mpu.h"
 
+#include "io/rc_controls.h"
+
 #define DEBUG_MPU_DATA_READY_INTERRUPT
 
 static bool mpuReadRegisterI2C(uint8_t reg, uint8_t length, uint8_t* data);
@@ -311,20 +313,37 @@ bool mpuGyroRead(int16_t *gyroADC)
         return false;
     }
 
-    static int16_t last_data0[3] = {0, 0, 0};
-    static int16_t last_data1[3] = {0, 0, 0};
+    static gyroDataStore_t gyroData;
 
-    gyroADC[0] = ((int16_t)((data[0] << 8) | data[1]) + last_data0[0] + last_data1[0]) / 3;
-    gyroADC[1] = ((int16_t)((data[2] << 8) | data[3]) + last_data0[1] + last_data1[1]) / 3;
-    gyroADC[2] = ((int16_t)((data[4] << 8) | data[5]) + last_data0[2] + last_data1[2]) / 3;
+    if ( IS_RC_MODE_ACTIVE(BOXTEST2) )  {
+		gyroADC[0] = ((int16_t)((data[0] << 8) | data[1]) + gyroData.a0 + gyroData.b0 + gyroData.c0 + gyroData.d0) / 5;
+		gyroADC[1] = ((int16_t)((data[2] << 8) | data[3]) + gyroData.a1 + gyroData.b1 + gyroData.c1 + gyroData.d1) / 5;
+		gyroADC[2] = ((int16_t)((data[4] << 8) | data[5]) + gyroData.a2 + gyroData.b2 + gyroData.c2 + gyroData.d2) / 5;
+    } else if ( IS_RC_MODE_ACTIVE(BOXTEST1) )  {
+		gyroADC[0] = ((int16_t)((data[0] << 8) | data[1]) + gyroData.a0 + gyroData.b0 + gyroData.c0) / 4;
+		gyroADC[1] = ((int16_t)((data[2] << 8) | data[3]) + gyroData.a1 + gyroData.b1 + gyroData.c1) / 4;
+		gyroADC[2] = ((int16_t)((data[4] << 8) | data[5]) + gyroData.a2 + gyroData.b2 + gyroData.c2) / 4;
+    } else {
+		gyroADC[0] = ((int16_t)((data[0] << 8) | data[1]) + gyroData.a0 + gyroData.b0) / 2;
+		gyroADC[1] = ((int16_t)((data[2] << 8) | data[3]) + gyroData.a1 + gyroData.b1) / 2;
+		gyroADC[2] = ((int16_t)((data[4] << 8) | data[5]) + gyroData.a2 + gyroData.b2) / 2;
+    }
 
-    last_data0[0] = last_data1[0];
-    last_data0[1] = last_data1[1];
-    last_data0[2] = last_data1[2];
+    gyroData.d0 = gyroData.c0;
+    gyroData.d1 = gyroData.c1;
+    gyroData.d2 = gyroData.c2;
 
-    last_data1[0] = (int16_t)((data[0] << 8) | data[1]);
-    last_data1[1] = (int16_t)((data[2] << 8) | data[3]);
-    last_data1[2] = (int16_t)((data[4] << 8) | data[5]);
+    gyroData.c0 = gyroData.b0;
+    gyroData.c1 = gyroData.b1;
+    gyroData.c2 = gyroData.b2;
+
+    gyroData.b0 = gyroData.a0;
+    gyroData.b1 = gyroData.a1;
+    gyroData.b2 = gyroData.a2;
+
+    gyroData.a0 = (int16_t)((data[0] << 8) | data[1]);
+    gyroData.a1 = (int16_t)((data[2] << 8) | data[3]);
+    gyroData.a2 = (int16_t)((data[4] << 8) | data[5]);
 
     return true;
 }

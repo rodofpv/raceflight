@@ -113,3 +113,9 @@
 #define BLACKBOX
 #define USE_SERVOS
 #define USE_CLI
+
+#undef BARO
+#undef GPS
+#undef SONAR
+#undef DISPLAY
+#undef MAG

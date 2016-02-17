@@ -185,6 +185,12 @@
 #define BINDPLUG_PIN   Pin_5
 #endif
 
+#undef BARO
+#undef GPS
+#undef SONAR
+#undef DISPLAY
+#undef MAG
+
 #define TARGET_IO_PORTA 0xffff
 #define TARGET_IO_PORTB 0xffff
 #define TARGET_IO_PORTC (BIT(13)|BIT(14)|BIT(15))

@@ -142,6 +142,12 @@
 #endif
 #define SKIP_CLI_COMMAND_HELP
 
+#undef BARO
+#undef GPS
+#undef SONAR
+#undef DISPLAY
+#undef MAG
+
 #define SPEKTRUM_BIND
 // USART3, PB11 (Flexport)
 #define BIND_PORT  GPIOB

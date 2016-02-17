@@ -173,6 +173,12 @@ typedef struct mpuDetectionResult_s {
     mpu6050Resolution_e resolution;
 } mpuDetectionResult_t;
 
+typedef struct gyroDataStore_s {
+	int16_t a0, b0, c0, d0;
+	int16_t a1, b1, c1, d1;
+	int16_t a2, b2, c2, d2;
+} gyroDataStore_t;
+
 extern mpuDetectionResult_t mpuDetectionResult;
 
 void configureMPUDataReadyInterruptHandling(void);
